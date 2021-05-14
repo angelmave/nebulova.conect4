@@ -1,1 +1,2 @@
-print("hola git")
+if True:
+    print("hola git")
