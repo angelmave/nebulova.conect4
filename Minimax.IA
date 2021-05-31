@@ -1,0 +1,167 @@
+###
+
+def minimax(tablero, depth, alpha, beta, maximizingPlayer):
+	valid_locations = get_valid_locations(tablero)
+	is_terminal = terminal_node(tablero)
+	if depth == 0 or is_terminal:
+		if is_terminal:
+			if mov_win(tablero, AI_PIECE):
+				return (None, 100000000000000)
+			elif mov_win(tablero, PLAYER_PIECE):
+				return (None, -10000000000000)
+			else: 
+				return (None, 0)
+		else: 
+			return (None, puntuacion(tablero, AI_PIECE))
+	if maximizingPlayer:
+		value = -math.inf
+		column = random.choice(valid_locations)
+		for col in valid_locations:
+			fila = prox_fila_vacia(tablero, col)
+			b_copy = tablero.copy()
+			soltar_ficha(b_copy, fila, col, AI_PIECE)
+			nueva_puntuacion = minimax(b_copy, depth-1, alpha, beta, False)[1]
+			if nueva_puntuacion > value:
+				value = nueva_puntuacion
+				column = col
+			alpha = max(alpha, value)
+			if alpha >= beta:
+				break
+		return column, value
+
+	else: 
+		value = math.inf
+		column = random.choice(valid_locations)
+		for col in valid_locations:
+			fila = prox_fila_vacia(tablero, col)
+			b_copy = tablero.copy()
+			soltar_ficha(b_copy, fila, col, PLAYER_PIECE)
+			new_score = minimax(b_copy, depth-1, alpha, beta, True)[1]
+			if new_score < value:
+				value = new_score
+				column = col
+			beta = min(beta, value)
+			if alpha >= beta:
+				break
+		return column, value
+
+def get_valid_locations(tablero):
+	valid_locations = []
+	for col in range(COLUMN_COUNT):
+		if espacio_valido(tablero, col):
+			valid_locations.append(col)
+	return valid_locations
+
+def best_mov(tablero, ficha):
+
+	valid_locations = get_valid_locations(tablero)
+	best_score = -10000
+	best_col = random.choice(valid_locations)
+	for col in valid_locations:
+		fila = prox_fila_vacia(tablero, col)
+		temp_board = tablero.copy()
+		soltar_ficha(temp_board, fila, col, ficha)
+		score = puntuacion(temp_board, ficha)
+		if score > best_score:
+			best_score = score
+			best_col = col
+
+	return best_col
+
+def draw_board(tablero):
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT):
+			pygame.draw.rect(screen, BLUE, (c*SQUARESIZE, r*SQUARESIZE+SQUARESIZE, SQUARESIZE, SQUARESIZE))
+			pygame.draw.circle(screen, BLACK, (int(c*SQUARESIZE+SQUARESIZE/2), int(r*SQUARESIZE+SQUARESIZE+SQUARESIZE/2)), RADIUS)
+	
+	for c in range(COLUMN_COUNT):
+		for r in range(ROW_COUNT):		
+			if tablero[r][c] == PLAYER_PIECE:
+				pygame.draw.circle(screen, RED, (int(c*SQUARESIZE+SQUARESIZE/2), height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+			elif tablero[r][c] == AI_PIECE: 
+				pygame.draw.circle(screen, YELLOW, (int(c*SQUARESIZE+SQUARESIZE/2), height-int(r*SQUARESIZE+SQUARESIZE/2)), RADIUS)
+	pygame.display.update()
+
+tablero= crear_tablero()
+imprimir_tablero(tablero)
+
+game_over, turn=False, 0
+
+pygame.init()
+
+SQUARESIZE = 100
+
+width = COLUMN_COUNT * SQUARESIZE
+height = (ROW_COUNT+1) * SQUARESIZE
+
+size = (width, height)
+
+RADIUS = int(SQUARESIZE/2 - 5)
+
+screen = pygame.display.set_mode(size)
+draw_board(tablero)
+pygame.display.update()
+
+myfont = pygame.font.SysFont("monospace", 75)
+
+turn = random.randint(PLAYER, AI)
+
+while not game_over:
+
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			sys.exit()
+
+		if event.type == pygame.MOUSEMOTION:
+			pygame.draw.rect(screen, BLACK, (0,0, width, SQUARESIZE))
+			posx = event.pos[0]
+			if turn == PLAYER:
+				pygame.draw.circle(screen, RED, (posx, int(SQUARESIZE/2)), RADIUS)
+
+		pygame.display.update()
+
+		if event.type == pygame.MOUSEBUTTONDOWN:
+			pygame.draw.rect(screen, BLACK, (0,0, width, SQUARESIZE))
+			# Jugador 1
+			if turn == PLAYER:
+				posx = event.pos[0]
+				col = int(math.floor(posx/SQUARESIZE))
+
+				if espacio_valido(tablero, col):
+					fila = prox_fila_vacia(tablero, col)
+					soltar_ficha(tablero, fila, col, PLAYER_PIECE)
+
+					if mov_win(tablero, PLAYER_PIECE):
+						label = myfont.render("Gana jugador 1!!", 1, RED)
+						screen.blit(label, (40,10))
+						game_over = True
+
+					turn += 1
+					turn = turn % 2
+
+					imprimir_tablero(tablero)
+					draw_board(tablero)
+
+
+	# Jugador 2
+	if turn == AI and not game_over:				
+
+		col, minimax_score = minimax(tablero, 5, -math.inf, math.inf, True)
+
+		if espacio_valido(tablero, col):
+			fila = prox_fila_vacia(tablero, col)
+			soltar_ficha(tablero, fila, col, AI_PIECE)
+
+			if mov_win(tablero, AI_PIECE):
+				label = myfont.render("Gana jugador 2!", 1, YELLOW)
+				screen.blit(label, (40,10))
+				game_over = True
+
+			imprimir_tablero(tablero)
+			draw_board(tablero)
+
+			turn += 1
+			turn = turn % 2
+
+	if game_over:
+		pygame.time.wait(3000)
